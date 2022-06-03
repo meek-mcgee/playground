@@ -1,4 +1,3 @@
-import { render } from "@testing-library/react";
 import React from "react";
 import ReactDOM from "react-dom/client"; //from react-dom/client, not react
 import './index.css';
@@ -136,7 +135,33 @@ class Slider extends React.Component {
     );
   }
 }
-
+class Sequencer extends React.Component {
+  constructor(props){
+    super(props)
+    this.state = {
+      rootFreq: props.state.freq, 
+      playing: false,
+    }
+    const counter = 0;
+    const steps = 4;
+  }
+  sequence(){
+    this.setState({rootFreq: (this.counter + 1) * this.state.rootFreq});
+    this.counter++;
+    this.counter %= 4;
+    console.log("root freq: ", this.rootFreq);
+  }
+  render(){
+    return(
+      <div>
+        <button onClick={() => {
+          setInterval(this.sequence(), 500);
+        }}>Sequencer</button>
+      </div>
+    )
+  }
+}
+const mainOsc = new Osc()
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<Osc />);
 
