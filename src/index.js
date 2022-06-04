@@ -79,11 +79,11 @@ class Osc extends React.Component {
     };
     const oscillator = null;
   }
-  init(){
+  init = () => {
     //init audioContext
     this.forceUpdate(()=> this.setState({context: new window.AudioContext}));
   }
-  play() {
+  play= () => {
     if(this.state.playing == false){
       this.setState({playing: true}, () => {
         //init oscillator
@@ -95,12 +95,15 @@ class Osc extends React.Component {
       })
     }
   }
-  updateFreq(newFreq){
+  updateFreq = (newFreq) => {
+    /* arrow function declaration prevents scope of this keyword from being assigned to the
+    function itself rather than the class it resides in. this always points to the class or 
+    function it is contained within */
     this.setState({freq: newFreq}, () => {
       if(this.oscillator != null) this.oscillator.frequency.setValueAtTime(this.state.freq, 2);
     })
   }
-  stop(){
+  stop = () => {
     if(this.state.playing == true) {
       this.setState({playing: false}, () => this.oscillator.stop());
     }
@@ -115,21 +118,33 @@ class Osc extends React.Component {
        <button className="key" onClick={ () => {
          if(this.state.playing == true) this.stop()
        }}>Stop</button>
-        <div className="freq_slider">
+       <Slider minVal = {0} maxVal = {1000} currentVal = {440} callbackFn = {this.updateFreq} />
+        {/*<div className="freq_slider">
           <input type ="range" min="1" max="1000" defaultValue ="440" className="slider" id="freq-slider" onChange={() =>{
             this.updateFreq(document.getElementById('freq-slider').value);
           }}></input>
-        </div>
+        </div>*/}
       </div>
     );
   }
 }
 class Slider extends React.Component {
-  render(oscProps){
+  constructor(props){
+    super(props);
+    this.state = {
+      minVal: props.minVal,
+      maxVal: props.maxVal,
+      currentVal: props.currentVal,
+      callbackFn: function(value){
+        props.callbackFn(value);
+      },
+    }
+  }
+  render(props){
     return(
       <div className="freq_slider">
-          <input type ="range" min="1" max="1000" defaultValue ="440" className="slider" id="freq-slider" onChange={() =>{
-            oscProps.updateFreq(document.getElementById('freq-slider').value);
+          <input type ="range" min={this.state.minVal} max={this.state.maxVal} defaultValue ={this.state.currentVal} className="slider" id="freq-slider" onChange={() =>{
+            this.state.callbackFn(document.getElementById('freq-slider').value);
           }}></input>
       </div>
     );
@@ -137,29 +152,48 @@ class Slider extends React.Component {
 }
 class Sequencer extends React.Component {
   constructor(props){
-    super(props)
+    super(props);
     this.state = {
-      rootFreq: props.state.freq, 
-      playing: false,
-    }
-    const counter = 0;
-    const steps = 4;
-  }
-  sequence(){
-    this.setState({rootFreq: (this.counter + 1) * this.state.rootFreq});
-    this.counter++;
-    this.counter %= 4;
-    console.log("root freq: ", this.rootFreq);
+      length: 4,
+      currentStep: 0,
+      rootFreq: 440,
+    };
   }
   render(){
     return(
       <div>
-        <button onClick={() => {
-          setInterval(this.sequence(), 500);
-        }}>Sequencer</button>
+        {/* sequencer code goes here */}
       </div>
-    )
+    );
   }
+}
+class Filter extends React.Component {
+  constructor(props){
+    super(props);
+    this.state = {
+      cutoff: 5000,
+      resonance: 0,
+      mode: 'low-pass', //mode of filter i.e. low-pass, high-pass
+    }
+  }
+  updateCutoff = (freq) => {
+    this.setState({cutoff: freq});
+  }
+  updateResonance = (q) => {
+    this.setState({resonance: q});
+  }
+  render(){
+    return(
+      <div>{/*add code here,
+      should be two sliders - one for cutoff,
+      one for resonance*/}
+      </div>
+    );
+  }
+
+}
+class Envelope extends React.Component {
+
 }
 const mainOsc = new Osc()
 const root = ReactDOM.createRoot(document.getElementById("root"));
