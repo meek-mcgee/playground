@@ -77,13 +77,16 @@ class Osc extends React.Component {
       playing: false,
       context: null,
     };
-    const oscillator = null;
+    var filter = null;
+    var oscillator = null;
   }
   init = () => {
     //init audioContext
-    this.forceUpdate(()=> this.setState({context: new window.AudioContext}));
+    this.forceUpdate(()=> this.setState({context: new window.AudioContext}), () => {
+      this.filter.init();
+    });
   }
-  play= () => {
+  play = () => {
     if(this.state.playing == false){
       this.setState({playing: true}, () => {
         //init oscillator
@@ -109,21 +112,26 @@ class Osc extends React.Component {
     }
   }
   render(){
+    let filter; 
+    let properties = {};
+    if(this.state.context != null) 
+    {
+      properties.context = this.state.context;
+      properties.oscillator = this.oscillator;
+      filter = <Filter context = {properties.context} oscillator={properties.oscillator}/>
+      this.filter = filter;
+    }
     return (
       <div>
         <button className="key" onClick={ () => {
         if(this.state.context == null) this.init()
-        if(this.state.context != null) this.play()
+        if(this.state.context != null) this.play()  
        } }>Play</button>
        <button className="key" onClick={ () => {
          if(this.state.playing == true) this.stop()
        }}>Stop</button>
-       <Slider minVal = {0} maxVal = {1000} currentVal = {440} callbackFn = {this.updateFreq} />
-        {/*<div className="freq_slider">
-          <input type ="range" min="1" max="1000" defaultValue ="440" className="slider" id="freq-slider" onChange={() =>{
-            this.updateFreq(document.getElementById('freq-slider').value);
-          }}></input>
-        </div>*/}
+       <Slider sliderName = "Pitch" minVal = {0} maxVal = {1000} defaultVal = {440} callbackFn = {this.updateFreq} />
+       {filter}
       </div>
     );
   }
@@ -134,17 +142,19 @@ class Slider extends React.Component {
     this.state = {
       minVal: props.minVal,
       maxVal: props.maxVal,
-      currentVal: props.currentVal,
+      defaultVal: props.currentVal,
+      sliderName: props.sliderName,
       callbackFn: function(value){
         props.callbackFn(value);
       },
     }
   }
-  render(props){
+  render = (props) => {
     return(
       <div className="freq_slider">
-          <input type ="range" min={this.state.minVal} max={this.state.maxVal} defaultValue ={this.state.currentVal} className="slider" id="freq-slider" onChange={() =>{
-            this.state.callbackFn(document.getElementById('freq-slider').value);
+        <div>{this.state.sliderName}</div>
+          <input type ="range" min={this.state.minVal} max={this.state.maxVal} defaultValue ={this.state.defaultVal} className="slider" id={this.state.sliderName} onChange={() =>{
+            this.state.callbackFn(document.getElementById(this.props.sliderName).value);
           }}></input>
       </div>
     );
@@ -172,21 +182,53 @@ class Filter extends React.Component {
     super(props);
     this.state = {
       cutoff: 5000,
-      resonance: 0,
-      mode: 'low-pass', //mode of filter i.e. low-pass, high-pass
+      resonance: 1,     //between 0.0001 and 1000
+      mode: 'lowpass', //mode of filter i.e. lowpass, highpass, bandpass, etc.
+      context: null,
+      initialized: false,
     }
+    const filter = 0;
+    const oscillator = 0;
+  }
+  init = (props) => {
+    this.setState({initialized: true, context: this.props.context}, () => {
+      this.filter = this.state.context.createBiquadFilter();
+      this.oscillator = this.props.oscillator;
+      console.log('this thing: ', this.oscillator);
+      this.filter.connect(this.state.context.destination);
+      this.filter.type = this.state.mode;
+      this.filter.frequency.setValueAtTime(this.state.cutoff, 1);
+      this.filter.q = this.filter.resonance;
+      console.log("filter initialized");
+      console.log(this.filter);
+      console.log(this.state.context.destination);
+    })
   }
   updateCutoff = (freq) => {
-    this.setState({cutoff: freq});
+    this.setState({cutoff: freq, context: this.props.context}, this.updateFilter());
   }
   updateResonance = (q) => {
-    this.setState({resonance: q});
+    this.setState({resonance: q, context: this.props.context}, this.updateFilter());
+  }
+  updateFilter = () => {
+    //context = new window.AudioContext();
+    if(this.state.context != null){
+      if(this.state.initialized != false){
+        //this.filter.frequency = this.state.cutoff;
+        this.filter.q = this.state.resonance;
+        console.log("freq updated");
+      }
+      else this.init();
+      
+    } 
+    else console.log("failed to load audioContext() in updateFilter()")
   }
   render(){
     return(
-      <div>{/*add code here,
-      should be two sliders - one for cutoff,
-      one for resonance*/}
+      <div>
+        <Slider sliderName = "Cutoff" minVal={0} maxVal={20000} defaultVal={this.state.cutoff} callbackFn={this.updateCutoff}/>
+        <Slider sliderName = "Resonance" minVal={1} maxVal={10} defaultVal={this.state.resonance} callbackFn={this.updateResonance}/>
+
       </div>
     );
   }
@@ -195,7 +237,8 @@ class Filter extends React.Component {
 class Envelope extends React.Component {
 
 }
-const mainOsc = new Osc()
+//const mainOsc = new Osc()
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<Osc />);
 
