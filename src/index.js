@@ -2,72 +2,6 @@ import React from "react";
 import ReactDOM from "react-dom/client"; //from react-dom/client, not react
 import './index.css';
 
-class Square extends React.Component {
-  constructor(props){
-    super(props);
-    this.state = {
-      value: null,
-    };
-  }
-  render() {
-    return (
-      <button className="square" onClick={() =>
-      this.setState({value: 'X'})}>
-        {this.state.value}
-      </button>
-    );
-  }
-}
-
-class Board extends React.Component {
-  renderSquare(i) {
-    return <Square value={i} />;
-  }
-
-  render() {
-    const status = 'Next player: X';
-
-    return (
-      <div>
-        <div className="status">{status}</div>
-        <div className="board-row">
-          {this.renderSquare(0)}
-          {this.renderSquare(1)}
-          {this.renderSquare(2)}
-        </div>
-        <div className="board-row">
-          {this.renderSquare(3)}
-          {this.renderSquare(4)}
-          {this.renderSquare(5)}
-        </div>
-        <div className="board-row">
-          {this.renderSquare(6)}
-          {this.renderSquare(7)}
-          {this.renderSquare(8)}
-        </div>
-      </div>
-    );
-  }
-}
-
-class Game extends React.Component {
-  render() {
-    return (
-      <div className="game">
-        <div className="game-board">
-          <Board />
-        </div>
-        <div className="game-info">
-          <div>{/* status */}</div>
-          <ol>{/* TODO */}</ol>
-        </div>
-      </div>
-    );
-  }
-}
-
-// ========================================
-
 //test stuff
 class Osc extends React.Component {
   constructor(props){
@@ -75,35 +9,29 @@ class Osc extends React.Component {
     this.state = {
       freq: 440,
       playing: false,
-      context: null,
+      context: props.context,
+      initialized: false,
     };
     var filter = null;
     var oscillator = null;
   }
   init = () => {
     //init audioContext
-    this.forceUpdate(()=> this.setState({context: new window.AudioContext}), () => {
-      this.filter.init();
-    });
+    this.setState({initialized: true});
+    this.oscillator = this.state.context.createOscillator();
+    this.oscillator.type = 'square';
+    this.oscillator.frequency.setValueAtTime(this.state.freq, 2);
+    this.play();
   }
   play = () => {
-    if(this.state.playing == false){
-      this.setState({playing: true}, () => {
-        //init oscillator
-        this.oscillator = this.state.context.createOscillator();
-        this.oscillator.type = 'sine';
-        this.oscillator.frequency.setValueAtTime(this.state.freq, 2);
-        this.oscillator.connect(this.state.context.destination);
-        this.oscillator.start();
-      })
-    }
+    if(this.state.playing == false) this.oscillator.start();
   }
   updateFreq = (newFreq) => {
     /* arrow function declaration prevents scope of this keyword from being assigned to the
     function itself rather than the class it resides in. this always points to the class or 
     function it is contained within */
     this.setState({freq: newFreq}, () => {
-      if(this.oscillator != null) this.oscillator.frequency.setValueAtTime(this.state.freq, 2);
+      if(this.oscillator != null) this.oscillator.frequency.value = this.state.freq;
     })
   }
   stop = () => {
@@ -112,26 +40,21 @@ class Osc extends React.Component {
     }
   }
   render(){
-    let filter; 
-    let properties = {};
-    if(this.state.context != null) 
-    {
-      properties.context = this.state.context;
-      properties.oscillator = this.oscillator;
-      filter = <Filter context = {properties.context} oscillator={properties.oscillator}/>
-      this.filter = filter;
-    }
     return (
       <div>
         <button className="key" onClick={ () => {
-        if(this.state.context == null) this.init()
-        if(this.state.context != null) this.play()  
+        this.state.context.resume();
+        if(this.state.initialized == false){
+          this.init();
+        }
+        else this.play();
        } }>Play</button>
        <button className="key" onClick={ () => {
+         this.state.context.suspend();
          if(this.state.playing == true) this.stop()
        }}>Stop</button>
        <Slider sliderName = "Pitch" minVal = {0} maxVal = {1000} defaultVal = {440} callbackFn = {this.updateFreq} />
-       {filter}
+       <Filter context = {this.props.context} oscillator = {this.oscillator} />
       </div>
     );
   }
@@ -183,20 +106,21 @@ class Filter extends React.Component {
     this.state = {
       cutoff: 5000,
       resonance: 1,     //between 0.0001 and 1000
-      mode: 'lowpass', //mode of filter i.e. lowpass, highpass, bandpass, etc.
-      context: null,
+      context: this.props.context,
       initialized: false,
     }
     const filter = 0;
-    const oscillator = 0;
+    const oscillator = this.props.oscillator;
+    const mode = 'lowpass';
   }
   init = (props) => {
     this.setState({initialized: true, context: this.props.context}, () => {
       this.filter = this.state.context.createBiquadFilter();
       this.oscillator = this.props.oscillator;
-      console.log('this thing: ', this.oscillator);
+      console.log(this.oscillator);
+      this.oscillator.connect(this.filter);
       this.filter.connect(this.state.context.destination);
-      this.filter.type = this.state.mode;
+      this.filter.type = this.mode;
       this.filter.frequency.setValueAtTime(this.state.cutoff, 1);
       this.filter.q = this.filter.resonance;
       console.log("filter initialized");
@@ -205,18 +129,18 @@ class Filter extends React.Component {
     })
   }
   updateCutoff = (freq) => {
-    this.setState({cutoff: freq, context: this.props.context}, this.updateFilter());
+    this.setState({cutoff: freq}, this.updateFilter());
   }
   updateResonance = (q) => {
-    this.setState({resonance: q, context: this.props.context}, this.updateFilter());
+    this.setState({resonance: q}, this.updateFilter());
   }
   updateFilter = () => {
-    //context = new window.AudioContext();
     if(this.state.context != null){
       if(this.state.initialized != false){
-        //this.filter.frequency = this.state.cutoff;
-        this.filter.q = this.state.resonance;
-        console.log("freq updated");
+        this.filter.frequency.setValueAtTime(this.state.cutoff, 1);
+        this.filter.Q.value = this.state.resonance;
+        this.filter.type = this.mode;
+        console.log("filter updated");
       }
       else this.init();
       
@@ -226,9 +150,10 @@ class Filter extends React.Component {
   render(){
     return(
       <div>
-        <Slider sliderName = "Cutoff" minVal={0} maxVal={20000} defaultVal={this.state.cutoff} callbackFn={this.updateCutoff}/>
-        <Slider sliderName = "Resonance" minVal={1} maxVal={10} defaultVal={this.state.resonance} callbackFn={this.updateResonance}/>
-
+        <Slider sliderName = "Cutoff" minVal={0} maxVal={5000} defaultVal={this.state.cutoff} callbackFn={this.updateCutoff}/>
+        <Slider sliderName = "Resonance" minVal={1} maxVal={20} defaultVal={this.state.resonance} callbackFn={this.updateResonance}/>
+        <button className="key" onClick={() => this.mode = 'lowpass'}> lowpass </button>
+        <button className="key" onClick={() => this.mode = 'highpass'}> highpass </button>
       </div>
     );
   }
@@ -237,8 +162,22 @@ class Filter extends React.Component {
 class Envelope extends React.Component {
 
 }
-//const mainOsc = new Osc()
+class Synth extends React.Component {
+  constructor(props){
+    super(props);
+    this.state = {
 
+    };
+
+  }
+  render = () => {
+    return(
+      <div></div>
+    );
+  }
+}
+//const mainOsc = new Osc()
+const context = new window.AudioContext;
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<Osc />);
+root.render(<Osc context = {context}/>);
 
