@@ -2,6 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom/client"; //from react-dom/client, not react
 import './index.css';
 
+/**
+ * 'The sun is rising
+ * it's almost dawn! 
+ * The night is short --
+ * walk on, girl.
+ */
+
 //test stuff
 class Osc extends React.Component {
   constructor(props){
@@ -20,12 +27,19 @@ class Osc extends React.Component {
     //init audioContext
     this.setState({initialized: true});
     this.oscillator = this.state.context.createOscillator();
+    this.oscillator.gain = this.state.context.createGain();
+    this.oscillator.gain.gain.setValueAtTime(1, 0);
     this.oscillator.type = 'square';
     this.oscillator.frequency.setValueAtTime(this.state.rootFreq, 2);
+    this.oscillator.connect(this.oscillator.gain);
     this.play();
   }
   play = () => {
     if(this.state.playing == false) this.oscillator.start();
+  }
+  updateGain = (newGain) => {
+    this.oscillator.gain.gain.setValueAtTime(newGain, 0);
+    console.log('gain updated');
   }
   updateRootFreq = (newFreq) => {
     //For pitch adjustment purposes -- do not use with sequencer class
@@ -57,9 +71,11 @@ class Osc extends React.Component {
          this.state.context.suspend();
          if(this.state.playing == true) this.stop()
        }}>Stop</button>
+       <Slider sliderName = "Gain" minVal = {0} maxVal = {1} defaultVal = {0.5} step ={0.05} callbackFn = {this.updateGain} />
        <Slider sliderName = "Pitch" minVal = {0} maxVal = {1000} defaultVal = {440} callbackFn = {this.updateRootFreq} />
        <Filter context = {this.props.context} oscillator = {this.oscillator} />
        <Sequencer callbackFn = {this.updateFreq}/>
+       <Envelope oscillator = {this.oscillator} callbackFn = {this.updateGain} />
       </div>
     );
   }
@@ -70,6 +86,7 @@ class Slider extends React.Component {
     this.state = {
       minVal: props.minVal,
       maxVal: props.maxVal,
+      step: props.step,
       defaultVal: props.currentVal,
       sliderName: props.sliderName,
       callbackFn: function(value){
@@ -81,7 +98,7 @@ class Slider extends React.Component {
     return(
       <span className="freq_slider">
         <div>{this.state.sliderName}</div>
-          <input type ="range" min={this.state.minVal} max={this.state.maxVal} defaultValue ={this.state.defaultVal} className="slider" id={this.state.sliderName} onChange={() =>{
+          <input type ="range" min={this.state.minVal} max={this.state.maxVal} defaultValue ={this.state.defaultVal} step = {this.state.step} className="slider" id={this.state.sliderName} onChange={() =>{
             this.state.callbackFn(document.getElementById(this.props.sliderName).value);
           }}></input>
       </span>
@@ -100,6 +117,7 @@ class Sequencer extends React.Component {
       callbackFn: this.props.callbackFn,
     };
     const interval = null;
+    const envelope = null;
   }
   pluckSequence = (step) => {
     this.setState({currentStep: step});
@@ -111,6 +129,7 @@ class Sequencer extends React.Component {
     }
   }
   runSequence = () => {
+    document.getElementById("triggerEnvelope").click();
     let step = (this.state.currentStep + 1) % this.state.length;
     this.setState({currentStep: step, running: true});
     let newFreq = this.state.rootFreq * (step + 0.5);
@@ -166,7 +185,8 @@ class Filter extends React.Component {
       this.filter = this.state.context.createBiquadFilter();
       this.oscillator = this.props.oscillator;
       console.log(this.oscillator);
-      this.oscillator.connect(this.filter);
+      console.log(this.oscillator.gain);
+      this.oscillator.gain.connect(this.filter);
       this.filter.connect(this.state.context.destination);
       this.filter.type = this.mode;
       this.filter.frequency.setValueAtTime(this.state.cutoff, 1);
@@ -212,7 +232,79 @@ class Filter extends React.Component {
 
 }
 class Envelope extends React.Component {
+  //Takes in a gain node from props.oscillator.gain
+  constructor(props) {
+    super(props);
+    this.state = {
+      attack: 50, //cycles of updateAttack
+      release: 50, //cycles of updateRelease
+      gain: 1,
+      callbackFn: this.props.callbackFn,
+    }
+    const secsPerUpdate = 5000;
+    const counter = 0;
+    const attackInterval = null;
+    const releaseInterval = null;
+  }
+  setAttack = (val) => this.setState({attack: val});
+  setRelease = (val) => this.setState({release: val});
+  updateAttack = () => {
+    //let newGain = this.state.gain/(this.state.attack - this.counter);
+    let newGain = Math.log10(this.counter + 1);
+    console.log("current attack: " + newGain);
+    this.state.callbackFn(newGain);
+    this.counter++;
+    if(!(this.counter < this.state.attack)){
+      this.counter = 0; 
+      clearInterval(this.attackInterval);
+      this.releaseInterval = setInterval(() => this.updateRelease(), this.secsPerUpdate);
+    }
+  }
+  updateRelease = () => {
+    //clear the attack interval and start the release timeout
+    let newGain = 0;
+    if(this.counter > this.state.release){
+      newGain = 0;
+      this.state.callbackFn(newGain);
+      clearInterval(this.releaseInterval);
+      if(this.attackInterval != null) clearInterval(this.attackInterval);
+    }
+    else {
+      newGain = this.state.gain - Math.log10((1/this.state.release)*this.counter + 1); //f(x) = log(-(x - 9)+ (z + 1)) puts y = 0 at the point (x, z); x-9 keeps starter point at gain = 1
+      this.state.callbackFn(newGain);
+      console.log("current release: " + newGain);
+      this.counter++;
+    }
 
+  }
+  resetEnvelope = (props) => {
+    /**
+     * envelope takes attack and release and updates the envelope based on this 
+     * by creating an interval var. 
+     * creates interval that lasts length of attack,
+     * then once interval ends, calls the release callbackFn 
+     * and runs that until it ends.
+     */
+    console.log("envelope triggered");
+    this.counter = 0;
+    if(this.attackInterval != null) clearInterval(this.attackInterval);
+    if(this.releaseInterval != null) clearInterval(this.releaseInterval);
+    this.setState({gain: 1}, () => {
+      this.attackInterval = setInterval(() => this.updateAttack(), this.secsPerUpdate);
+      this.state.callbackFn(this.state.gain);
+      this.updateAttack();
+    });
+  }
+  render = (props) => {
+    return(
+      <div>
+        <button className="key" id="triggerEnvelope" onClick={() => this.resetEnvelope()}>Trigger Env</button>
+        <button className="key" onClick={() => this.setLooping()} >Loop Envelope</button>
+        <Slider sliderName= "Attack" minVal = {0} maxVal = {50} defaultVal = {5} step = {1} callbackFn={this.setAttack}/>
+        <Slider sliderName= "Release" minVal = {0} maxVal = {50} defaultVal = {5} step = {1} callbackFn={this.setRelease}/>
+      </div> 
+    );
+  }
 }
 class Synth extends React.Component {
   constructor(props){
