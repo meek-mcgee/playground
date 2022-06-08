@@ -1,6 +1,7 @@
 body {
     font: 14px "Century Gothic", Futura, sans-serif;
     margin: 20px;
+    /*text-align: center; */
   }
   title {
     margin: auto;
@@ -58,11 +59,22 @@ body {
   }
   .mainDiv {
     margin:2%;
-    box-shadow: 10px 5px 5px grey;
+    width:max-content;
+    height:min-content;
+    border-radius: 2%;
+    background-color: plum;
+    box-shadow: 5px 5px 5px 5px grey;
   }
   .inlineDiv {
     background-color: aquamarine;
   }
+  /*
+  div:hover {
+    background-color: aliceblue;
+    transition: background-color .5s+;
+  }
+  */
+
   .key {
 
   }

@@ -10,18 +10,20 @@ import './index.css';
  */
 
 //test stuff
-class Osc extends React.Component {
+class Synth extends React.Component {
   constructor(props){
     super(props);
     this.state = {
+      numModules: 4,
       rootFreq: 440,
       currentFreq: 440,
       playing: false,
       context: props.context,
       initialized: false,
+      moduleList: ['oscillator', 'filter', 'envelope', 'sequencer'],
     };
-    var filter = null;
     var oscillator = null;
+    const currentModules = [];
   }
   init = () => {
     //init audioContext
@@ -36,6 +38,11 @@ class Osc extends React.Component {
   }
   play = () => {
     if(this.state.playing == false) this.oscillator.start();
+  }
+  stop = () => {
+    if(this.state.playing == true) {
+      this.setState({playing: false}, () => this.oscillator.stop());
+    }
   }
   updateGain = (newGain) => {
     this.oscillator.gain.gain.setValueAtTime(newGain, 0);
@@ -52,14 +59,33 @@ class Osc extends React.Component {
     })
     return this.state.rootFreq;
   }
-  stop = () => {
-    if(this.state.playing == true) {
-      this.setState({playing: false}, () => this.oscillator.stop());
+  addModule = (stringIndex) => {
+    switch(stringIndex) {
+      case 'oscillator':
+        console.log('oscillator');
+        break;
+      case 'filter':
+        console.log('filter');
+        break;
+      case 'envelope':
+        console.log('envelope');
+        break;
+      case 'sequencer':
+        console.log('sequencer');
+        break;
+      default:
+        console.error('Synth.addModule() stringIndex out of range');
     }
   }
-  render(){
+  render = () => {
+    
+    const availableModules = [];
+    for(let i = 0; i < this.state.moduleList.length; i++ ){
+      availableModules[i] = <button className="key" key={this.state.moduleList[i] + "_module"} onClick={() => this.addModule(this.state.moduleList[i])}>{this.state.moduleList[i]}</button>
+    }
     return (
       <div className="mainDiv">
+        {availableModules}
         <button className="key" onClick={ () => {
         this.state.context.resume();
         if(this.state.initialized == false){
@@ -73,7 +99,7 @@ class Osc extends React.Component {
        }}>Stop</button>
        <Slider sliderName = "Gain" minVal = {0} maxVal = {1} defaultVal = {0.5} step ={0.05} callbackFn = {this.updateGain} />
        <Slider sliderName = "Pitch" minVal = {0} maxVal = {1000} defaultVal = {440} callbackFn = {this.updateRootFreq} />
-       <Filter context = {this.props.context} oscillator = {this.oscillator} />
+       <Filter oscillator = {this.oscillator} />
        <Sequencer callbackFn = {this.updateFreq}/>
        <Envelope oscillator = {this.oscillator} callbackFn = {this.updateGain} />
       </div>
@@ -129,7 +155,7 @@ class Sequencer extends React.Component {
     }
   }
   runSequence = () => {
-    document.getElementById("triggerEnvelope").click();
+    document.getElementById("triggerEnvelope").click(); //will break when there's more than one envelope, must fix later
     let step = (this.state.currentStep + 1) % this.state.length;
     this.setState({currentStep: step, running: true});
     let newFreq = this.state.rootFreq * (step + 0.5);
@@ -173,27 +199,28 @@ class Filter extends React.Component {
     this.state = {
       cutoff: 5000,
       resonance: 1,     //between 0.0001 and 1000
-      context: this.props.context,
       initialized: false,
     }
+    const context = null;
     const filter = 0;
     const oscillator = this.props.oscillator;
     const mode = 'lowpass';
   }
   init = (props) => {
-    this.setState({initialized: true, context: this.props.context}, () => {
-      this.filter = this.state.context.createBiquadFilter();
-      this.oscillator = this.props.oscillator;
+    this.oscillator = this.props.oscillator;
+    this.setState({initialized: true}, () => {
+      this.context = this.oscillator.context;
+      this.filter = this.context.createBiquadFilter();
       console.log(this.oscillator);
       console.log(this.oscillator.gain);
       this.oscillator.gain.connect(this.filter);
-      this.filter.connect(this.state.context.destination);
+      this.filter.connect(this.context.destination);
       this.filter.type = this.mode;
       this.filter.frequency.setValueAtTime(this.state.cutoff, 1);
-      this.filter.q = this.filter.resonance;
+      this.filter.Q.value = this.state.resonance;
       console.log("filter initialized");
       console.log(this.filter);
-      console.log(this.state.context.destination);
+      console.log(this.context.destination);
     })
   }
   updateCutoff = (freq) => {
@@ -203,7 +230,7 @@ class Filter extends React.Component {
     this.setState({resonance: q}, this.updateFilter());
   }
   updateFilter = () => {
-    if(this.state.context != null){
+    if(this.context != null){
       if(this.state.initialized != false){
         this.filter.frequency.setValueAtTime(this.state.cutoff, 1);
         this.filter.Q.value = this.state.resonance;
@@ -213,7 +240,7 @@ class Filter extends React.Component {
       else this.init();
       
     } 
-    else console.log("failed to load audioContext() in updateFilter()")
+    else console.error("failed to load audioContext() in updateFilter()")
   }
   render(){
     return(
@@ -251,7 +278,7 @@ class Envelope extends React.Component {
   updateAttack = () => {
     //let newGain = this.state.gain/(this.state.attack - this.counter);
     let newGain = Math.log10(this.counter + 1);
-    console.log("current attack: " + newGain);
+    //console.log("current attack: " + newGain);
     this.state.callbackFn(newGain);
     this.counter++;
     if(!(this.counter < this.state.attack)){
@@ -272,7 +299,7 @@ class Envelope extends React.Component {
     else {
       newGain = this.state.gain - Math.log10((1/this.state.release)*this.counter + 1); //f(x) = log(-(x - 9)+ (z + 1)) puts y = 0 at the point (x, z); x-9 keeps starter point at gain = 1
       this.state.callbackFn(newGain);
-      console.log("current release: " + newGain);
+      //console.log("current release: " + newGain);
       this.counter++;
     }
 
@@ -306,22 +333,84 @@ class Envelope extends React.Component {
     );
   }
 }
-class Synth extends React.Component {
+class Oscillator extends React.Component {
   constructor(props){
     super(props);
     this.state = {
-
+      rootFreq: 440,
+      currentFreq: 440,
+      playing: false,
+      context: props.context,
+      initialized: false,
     };
-
+    var oscillator = null;
+  }
+  init = () => {
+    //init audioContext
+    this.setState({initialized: true});
+    this.oscillator = this.state.context.createOscillator();
+    this.oscillator.gain = this.state.context.createGain();
+    this.oscillator.gain.gain.setValueAtTime(1, 0);
+    this.oscillator.type = 'square';
+    this.oscillator.frequency.setValueAtTime(this.state.rootFreq, 2);
+    this.oscillator.connect(this.oscillator.gain);
+    this.play();
+  }
+  play = () => {
+    if(this.state.playing == false) this.oscillator.start();
+  }
+  stop = () => {
+    if(this.state.playing == true) {
+      this.setState({playing: false}, () => this.oscillator.stop());
+    }
+  }
+  updateGain = (newGain) => {
+    this.oscillator.gain.gain.setValueAtTime(newGain, 0);
+    console.log('gain updated');
+  }
+  updateRootFreq = (newFreq) => {
+    //For pitch adjustment purposes -- do not use with sequencer class
+    this.setState({rootFreq: newFreq}, () => this.updateFreq(newFreq));
+  }
+  updateFreq = (newFreq) => {
+    //For sequencing purposes
+    this.setState({currentFreq: newFreq}, () => {
+      if(this.oscillator != null) this.oscillator.frequency.value = this.state.currentFreq;
+    })
+    return this.state.rootFreq;
   }
   render = () => {
-    return(
-      <div></div>
+    return (
+      <div className="mainDiv">
+        {/** Render play/pause buttons */}
+        <button className="key" onClick={ () => {
+        this.state.context.resume();
+        if(this.state.initialized == false){
+          this.init();
+        }
+        else this.play();
+       } }>Play</button>
+       <button className="key" onClick={ () => {
+         this.state.context.suspend();
+         if(this.state.playing == true) this.stop()
+       }}>Stop</button>
+       {/** Render gain/pitch sliders */}
+       <Slider sliderName = "Gain" minVal = {0} maxVal = {1} defaultVal = {0.5} step ={0.05} callbackFn = {this.updateGain} />
+       <Slider sliderName = "Pitch" minVal = {0} maxVal = {1000} defaultVal = {440} callbackFn = {this.updateRootFreq} />
+      </div>
     );
   }
 }
-//const mainOsc = new Osc()
+class Connector {
+  constructor(o, d){ //o - origin, d - destination
+    const origin = o;
+    const destination = d;
+  }
+  connect = () => this.origin.connect(this.destination);
+  disconnect = () => this.origin.disconnect(this.destination);
+}
+
 const context = new window.AudioContext;
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<Osc context = {context}/>);
+root.render(<Synth context = {context}/>);
 
