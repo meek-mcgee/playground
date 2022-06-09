@@ -10,102 +10,6 @@ import './index.css';
  */
 
 //test stuff
-class Synth extends React.Component {
-  constructor(props){
-    super(props);
-    this.state = {
-      numModules: 4,
-      rootFreq: 440,
-      currentFreq: 440,
-      playing: false,
-      context: props.context,
-      initialized: false,
-      moduleList: ['oscillator', 'filter', 'envelope', 'sequencer'],
-    };
-    var oscillator = null;
-    const currentModules = [];
-  }
-  init = () => {
-    //init audioContext
-    this.setState({initialized: true});
-    this.oscillator = this.state.context.createOscillator();
-    this.oscillator.gain = this.state.context.createGain();
-    this.oscillator.gain.gain.setValueAtTime(1, 0);
-    this.oscillator.type = 'square';
-    this.oscillator.frequency.setValueAtTime(this.state.rootFreq, 2);
-    this.oscillator.connect(this.oscillator.gain);
-    this.play();
-  }
-  play = () => {
-    if(this.state.playing == false) this.oscillator.start();
-  }
-  stop = () => {
-    if(this.state.playing == true) {
-      this.setState({playing: false}, () => this.oscillator.stop());
-    }
-  }
-  updateGain = (newGain) => {
-    this.oscillator.gain.gain.setValueAtTime(newGain, 0);
-    console.log('gain updated');
-  }
-  updateRootFreq = (newFreq) => {
-    //For pitch adjustment purposes -- do not use with sequencer class
-    this.setState({rootFreq: newFreq}, () => this.updateFreq(newFreq));
-  }
-  updateFreq = (newFreq) => {
-    //For sequencing purposes
-    this.setState({currentFreq: newFreq}, () => {
-      if(this.oscillator != null) this.oscillator.frequency.value = this.state.currentFreq;
-    })
-    return this.state.rootFreq;
-  }
-  addModule = (stringIndex) => {
-    switch(stringIndex) {
-      case 'oscillator':
-        console.log('oscillator');
-        break;
-      case 'filter':
-        console.log('filter');
-        break;
-      case 'envelope':
-        console.log('envelope');
-        break;
-      case 'sequencer':
-        console.log('sequencer');
-        break;
-      default:
-        console.error('Synth.addModule() stringIndex out of range');
-    }
-  }
-  render = () => {
-    
-    const availableModules = [];
-    for(let i = 0; i < this.state.moduleList.length; i++ ){
-      availableModules[i] = <button className="key" key={this.state.moduleList[i] + "_module"} onClick={() => this.addModule(this.state.moduleList[i])}>{this.state.moduleList[i]}</button>
-    }
-    return (
-      <div className="mainDiv">
-        {availableModules}
-        <button className="key" onClick={ () => {
-        this.state.context.resume();
-        if(this.state.initialized == false){
-          this.init();
-        }
-        else this.play();
-       } }>Play</button>
-       <button className="key" onClick={ () => {
-         this.state.context.suspend();
-         if(this.state.playing == true) this.stop()
-       }}>Stop</button>
-       <Slider sliderName = "Gain" minVal = {0} maxVal = {1} defaultVal = {0.5} step ={0.05} callbackFn = {this.updateGain} />
-       <Slider sliderName = "Pitch" minVal = {0} maxVal = {1000} defaultVal = {440} callbackFn = {this.updateRootFreq} />
-       <Filter oscillator = {this.oscillator} />
-       <Sequencer callbackFn = {this.updateFreq}/>
-       <Envelope oscillator = {this.oscillator} callbackFn = {this.updateGain} />
-      </div>
-    );
-  }
-}
 class Slider extends React.Component {
   constructor(props){
     super(props);
@@ -142,15 +46,15 @@ class Sequencer extends React.Component {
       tempo: 1000, //in milliseconds
       callbackFn: this.props.callbackFn,
     };
-    const interval = null;
-    const envelope = null;
+    this.interval = null;
+    this.envelope = null;
   }
   pluckSequence = (step) => {
     this.setState({currentStep: step});
     let newFreq = this.state.rootFreq * (step + 0.5);
     this.state.callbackFn(newFreq);
     console.log(step);
-    if(this.state.running == false) {
+    if(this.state.running === false) {
       this.interval = setInterval(() => this.runSequence(), this.state.tempo);
     }
   }
@@ -201,10 +105,10 @@ class Filter extends React.Component {
       resonance: 1,     //between 0.0001 and 1000
       initialized: false,
     }
-    const context = null;
-    const filter = 0;
-    const oscillator = this.props.oscillator;
-    const mode = 'lowpass';
+    this.context = null;
+    this.filter = 0;
+    this.oscillator = this.props.oscillator;
+    this.mode = 'lowpass';
   }
   init = (props) => {
     this.oscillator = this.props.oscillator;
@@ -230,8 +134,8 @@ class Filter extends React.Component {
     this.setState({resonance: q}, this.updateFilter());
   }
   updateFilter = () => {
-    if(this.context != null){
-      if(this.state.initialized != false){
+    if(this.context !== null){
+      if(this.state.initialized !== false){
         this.filter.frequency.setValueAtTime(this.state.cutoff, 1);
         this.filter.Q.value = this.state.resonance;
         this.filter.type = this.mode;
@@ -242,6 +146,10 @@ class Filter extends React.Component {
     } 
     else console.error("failed to load audioContext() in updateFilter()")
   }
+  updateMode = (mode) => {
+    this.mode = mode;
+    this.updateFilter();
+  }
   render(){
     return(
       <div className="inlineDiv">
@@ -250,8 +158,8 @@ class Filter extends React.Component {
           <Slider sliderName = "Resonance" minVal={1} maxVal={100} defaultVal={this.state.resonance} callbackFn={this.updateResonance}/>
         </div>
         <div>
-          <button className="key" onClick={() => this.mode = 'lowpass'}> lowpass </button>
-          <button className="key" onClick={() => this.mode = 'highpass'}> highpass </button>
+          <button className="key" id="lowpass_button" onClick={() => this.updateMode('lowpass')}> lowpass </button>
+          <button className="key" onClick={() => this.updateMode('highpass')}> highpass </button>
         </div>
       </div>
     );
@@ -268,10 +176,14 @@ class Envelope extends React.Component {
       gain: 1,
       callbackFn: this.props.callbackFn,
     }
-    const secsPerUpdate = 5000;
-    const counter = 0;
-    const attackInterval = null;
-    const releaseInterval = null;
+    this.gain = null;
+    this.counter = 0;
+    this.attackInterval = null;
+    this.releaseInterval = null;
+  }
+  updateGain = (newGain) => {
+    this.gain.gain.setValueAtTime(newGain, 0);
+    console.log('gain updated');
   }
   setAttack = (val) => this.setState({attack: val});
   setRelease = (val) => this.setState({release: val});
@@ -279,26 +191,26 @@ class Envelope extends React.Component {
     //let newGain = this.state.gain/(this.state.attack - this.counter);
     let newGain = Math.log10(this.counter + 1);
     //console.log("current attack: " + newGain);
-    this.state.callbackFn(newGain);
+    this.updateGain(newGain);
     this.counter++;
     if(!(this.counter < this.state.attack)){
       this.counter = 0; 
       clearInterval(this.attackInterval);
-      this.releaseInterval = setInterval(() => this.updateRelease(), this.secsPerUpdate);
+      this.releaseInterval = setInterval(() => this.updateRelease(), 0);
     }
   }
   updateRelease = () => {
     //clear the attack interval and start the release timeout
     let newGain = 0;
-    if(this.counter > this.state.release){
+    if(this.counter >= this.state.release){
       newGain = 0;
-      this.state.callbackFn(newGain);
+      this.updateGain(newGain);
       clearInterval(this.releaseInterval);
-      if(this.attackInterval != null) clearInterval(this.attackInterval);
+      if(this.attackInterval !== null) clearInterval(this.attackInterval);
     }
     else {
       newGain = this.state.gain - Math.log10((1/this.state.release)*this.counter + 1); //f(x) = log(-(x - 9)+ (z + 1)) puts y = 0 at the point (x, z); x-9 keeps starter point at gain = 1
-      this.state.callbackFn(newGain);
+      this.updateGain(newGain);
       //console.log("current release: " + newGain);
       this.counter++;
     }
@@ -313,12 +225,14 @@ class Envelope extends React.Component {
      * and runs that until it ends.
      */
     console.log("envelope triggered");
+    this.gain = this.props.oscillator.gain;
     this.counter = 0;
-    if(this.attackInterval != null) clearInterval(this.attackInterval);
-    if(this.releaseInterval != null) clearInterval(this.releaseInterval);
+    if(this.attackInterval !== null) clearInterval(this.attackInterval);
+    if(this.releaseInterval !== null) clearInterval(this.releaseInterval);
     this.setState({gain: 1}, () => {
-      this.attackInterval = setInterval(() => this.updateAttack(), this.secsPerUpdate);
-      this.state.callbackFn(this.state.gain);
+      console.log('this.secsPerUpdate: ' + this.secsPerUpdate);
+      this.attackInterval = setInterval(() => this.updateAttack(), 0);
+      this.updateGain(this.state.gain);
       this.updateAttack();
     });
   }
@@ -343,8 +257,10 @@ class Oscillator extends React.Component {
       context: props.context,
       initialized: false,
     };
-    var oscillator = null;
+    this.oscillator = null;
+    this.sequencer = null;
   }
+  printMessage = () => {console.log('hello');}
   init = () => {
     //init audioContext
     this.setState({initialized: true});
@@ -354,13 +270,14 @@ class Oscillator extends React.Component {
     this.oscillator.type = 'square';
     this.oscillator.frequency.setValueAtTime(this.state.rootFreq, 2);
     this.oscillator.connect(this.oscillator.gain);
+    this.sequencer = <Sequencer callbackFn = {this.updateFreq}/>
     this.play();
   }
   play = () => {
-    if(this.state.playing == false) this.oscillator.start();
+    if(this.state.playing === false) this.oscillator.start();
   }
   stop = () => {
-    if(this.state.playing == true) {
+    if(this.state.playing === true) {
       this.setState({playing: false}, () => this.oscillator.stop());
     }
   }
@@ -375,7 +292,7 @@ class Oscillator extends React.Component {
   updateFreq = (newFreq) => {
     //For sequencing purposes
     this.setState({currentFreq: newFreq}, () => {
-      if(this.oscillator != null) this.oscillator.frequency.value = this.state.currentFreq;
+      if(this.oscillator !== null) this.oscillator.frequency.value = this.state.currentFreq;
     })
     return this.state.rootFreq;
   }
@@ -385,16 +302,17 @@ class Oscillator extends React.Component {
         {/** Render play/pause buttons */}
         <button className="key" onClick={ () => {
         this.state.context.resume();
-        if(this.state.initialized == false){
+        if(this.state.initialized === false){
           this.init();
         }
         else this.play();
        } }>Play</button>
        <button className="key" onClick={ () => {
          this.state.context.suspend();
-         if(this.state.playing == true) this.stop()
+         if(this.state.playing === true) this.stop()
        }}>Stop</button>
        {/** Render gain/pitch sliders */}
+       {this.sequencer}
        <Slider sliderName = "Gain" minVal = {0} maxVal = {1} defaultVal = {0.5} step ={0.05} callbackFn = {this.updateGain} />
        <Slider sliderName = "Pitch" minVal = {0} maxVal = {1000} defaultVal = {440} callbackFn = {this.updateRootFreq} />
       </div>
@@ -402,15 +320,120 @@ class Oscillator extends React.Component {
   }
 }
 class Connector {
-  constructor(o, d){ //o - origin, d - destination
-    const origin = o;
-    const destination = d;
+  constructor(o, d, cb){ //o - origin, d - destination, cb - callbackFunction()
+    this.origin = o;
+    this.destination = d;
+    this.callbackFn = cb;
   }
+  getOrigin = () => this.origin;
+  getDestination = () => this.destination;
+  getCallbackFn = () => this.callbackFn;
   connect = () => this.origin.connect(this.destination);
   disconnect = () => this.origin.disconnect(this.destination);
 }
 
-const context = new window.AudioContext;
+class Synth extends React.Component {
+  constructor(props){
+    super(props);
+    this.state = {
+      rootFreq: 440,
+      currentFreq: 440,
+      playing: false,
+      context: props.context,
+      initialized: false,
+      currentModules: [],
+      moduleList: ['oscillator', 'filter', 'envelope'],
+    };
+    this.oscillator = null;
+  }
+  init = () => {
+    //init audioContext
+    this.setState({initialized: true}, () => document.getElementById("lowpass_button").click()); //initializes filter 
+    this.oscillator = this.state.context.createOscillator();
+    this.oscillator.gain = this.state.context.createGain();
+    this.oscillator.gain.gain.setValueAtTime(1, 0);
+    this.oscillator.type = 'square';
+    this.oscillator.frequency.setValueAtTime(this.state.rootFreq, 2);
+    this.oscillator.connect(this.oscillator.gain);
+    this.play();
+  }
+  play = () => {
+    if(this.state.playing === false) this.oscillator.start();
+  }
+  stop = () => {
+    if(this.state.playing === true) {
+      this.setState({playing: false}, () => this.oscillator.stop());
+    }
+  }
+  updateGain = (newGain) => {
+    this.oscillator.gain.gain.setValueAtTime(newGain, 0);
+    console.log('gain updated');
+  }
+  updateRootFreq = (newFreq) => {
+    //For pitch adjustment purposes -- do not use with sequencer class
+    this.setState({rootFreq: newFreq}, () => this.updateFreq(newFreq));
+  }
+  updateFreq = (newFreq) => {
+    //For sequencing purposes
+    this.setState({currentFreq: newFreq}, () => {
+      if(this.oscillator !== null) this.oscillator.frequency.value = this.state.currentFreq;
+    })
+    return this.state.rootFreq;
+  }
+  addModule = (stringIndex) => {
+    let subArray = this.state.currentModules;
+    switch(stringIndex) {
+      case 'oscillator':
+        console.log('oscillator');
+        subArray.push(<Oscillator context={this.state.context} />);
+        this.setState({currentModules: subArray});
+        break;
+      case 'filter':
+        console.log('filter');
+        subArray.push(<Filter oscillator = {this.oscillator} />);
+        this.setState({currentModules: subArray});
+        break;
+      case 'envelope':
+        console.log('envelope');
+        subArray.push(<Envelope oscillator = {this.oscillator} callbackFn = {this.updateGain} />);
+        this.setState({currentModules: subArray});
+        break;
+      default:
+        console.error('Synth.addModule() stringIndex out of range');
+    }
+    console.log(this.state.currentModules);
+  }
+  render = () => {
+    
+    const availableModules = [];
+    for(let i = 0; i < this.state.moduleList.length; i++ ){
+      availableModules[i] = <button className="key" key={this.state.moduleList[i] + "_module"} onClick={() => this.addModule(this.state.moduleList[i])}>{this.state.moduleList[i]}</button>
+    }
+    return (
+      <div className="mainDiv">
+        {availableModules}
+        <button className="key" onClick={ () => {
+        this.state.context.resume();
+        if(this.state.initialized === false){
+          this.init();
+          
+        }
+        else this.play();
+       } }>Play</button>
+       <button className="key" onClick={ () => {
+         this.state.context.suspend();
+         if(this.state.playing === true) this.stop()
+       }}>Stop</button>
+       <Slider sliderName = "Gain" minVal = {0} maxVal = {1} defaultVal = {0.5} step ={0.05} callbackFn = {this.updateGain} />
+       <Slider sliderName = "Pitch" minVal = {0} maxVal = {1000} defaultVal = {440} callbackFn = {this.updateRootFreq} />
+       <Filter oscillator = {this.oscillator} />
+       <Sequencer callbackFn = {this.updateFreq}/>
+       <Envelope oscillator = {this.oscillator} />
+      </div>
+    );
+  }
+}
+const context = new window.AudioContext();
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<Synth context = {context}/>);
 
