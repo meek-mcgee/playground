@@ -88,7 +88,7 @@ class Sequencer extends React.Component {
       buttonList[i] = <button className="seqStep" key={i + '_step'} onClick={() => this.pluckSequence(i)}>{i}</button>;
     }
     return(
-      <div>
+      <div className="inlineDiv">
         <button className="key" onClick={() => this.stepUpLength() }>+</button>
         <button className="key" onClick={() => this.stepDownLength() }>-</button>
         <Slider sliderName="Tempo" minVal={20} maxVal={1000} defaultVal={100} callbackFn={this.updateTempo} />
@@ -111,27 +111,31 @@ class Filter extends React.Component {
     this.mode = 'lowpass';
   }
   init = (props) => {
-    this.oscillator = this.props.oscillator;
-    this.setState({initialized: true}, () => {
-      this.context = this.oscillator.context;
-      this.filter = this.context.createBiquadFilter();
-      console.log(this.oscillator);
-      console.log(this.oscillator.gain);
-      this.oscillator.gain.connect(this.filter);
-      this.filter.connect(this.context.destination);
-      this.filter.type = this.mode;
-      this.filter.frequency.setValueAtTime(this.state.cutoff, 1);
-      this.filter.Q.value = this.state.resonance;
-      console.log("filter initialized");
-      console.log(this.filter);
-      console.log(this.context.destination);
-    })
+    if(this.props.oscillator !== null){
+      this.oscillator = this.props.oscillator;
+      this.setState({initialized: true}, () => {
+        this.context = this.oscillator.context;
+        this.filter = this.context.createBiquadFilter();
+        console.log(this.oscillator);
+        console.log(this.oscillator.gain);
+        this.oscillator.gain.connect(this.filter);
+        this.filter.connect(this.context.destination);
+        this.filter.type = this.mode;
+        this.filter.frequency.setValueAtTime(this.state.cutoff, 1);
+        this.filter.Q.value = this.state.resonance;
+        console.log("filter initialized");
+        console.log(this.filter);
+        console.log(this.context.destination);
+      })
+    }
+    else console.error("this.props.oscillator == null");
+    
   }
   updateCutoff = (freq) => {
-    this.setState({cutoff: freq}, this.updateFilter());
+    if(this.context) this.setState({cutoff: freq}, this.updateFilter());
   }
   updateResonance = (q) => {
-    this.setState({resonance: q}, this.updateFilter());
+    if(this.context) this.setState({resonance: q}, this.updateFilter());
   }
   updateFilter = () => {
     if(this.context !== null){
@@ -152,10 +156,10 @@ class Filter extends React.Component {
   }
   render(){
     return(
-      <div className="inlineDiv">
+      <div>
         <div>
           <Slider sliderName = "Cutoff" minVal={0} maxVal={5000} defaultVal={this.state.cutoff} callbackFn={this.updateCutoff}/>
-          <Slider sliderName = "Resonance" minVal={1} maxVal={100} defaultVal={this.state.resonance} callbackFn={this.updateResonance}/>
+          <Slider sliderName = "Resonance" minVal={1} maxVal={10} step={0.1} defaultVal={this.state.resonance} callbackFn={this.updateResonance}/>
         </div>
         <div>
           <button className="key" id="lowpass_button" onClick={() => this.updateMode('lowpass')}> lowpass </button>
@@ -411,7 +415,6 @@ class Synth extends React.Component {
     }
     return (
       <div className="mainDiv">
-        {availableModules}
         <button className="key" onClick={ () => {
         this.state.context.resume();
         if(this.state.initialized === false){

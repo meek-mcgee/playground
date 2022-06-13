@@ -29,11 +29,12 @@ body {
     outline:none;
     -webkit-appearance:none;
     opacity: 0.8;
+    background: #ffc8dd;;
     transition: opacity .5s;
   }
   .slider:hover{
     opacity: 1;
-    background-color:antiquewhite;
+    background-color:#ffafcc;
   }
   .seqStep {
     border-radius: 100%;
@@ -63,11 +64,11 @@ body {
     height:min-content;
     padding: 2%;
     border-radius: 2%;
-    background-color: plum;
+    background-color:#a2d2ff;
     box-shadow: 5px 5px 5px 5px grey;
   }
   .inlineDiv {
-    background-color: aquamarine;
+    width:220px;
   }
   /*
   div:hover {
