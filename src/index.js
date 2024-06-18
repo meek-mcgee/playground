@@ -71,10 +71,10 @@ class Sequencer extends React.Component {
 
   }
   stepUpLength = () => {
-    this.setState({length: this.state.length + 1});
+    if(this.state.length < 16) this.setState({length: this.state.length + 1});
   }
   stepDownLength = () => {
-    if(this.state.length - 1 > 0) this.setState({length: this.state.length - 1});
+    if(this.state.length - 1 > 1) this.setState({length: this.state.length - 1});
     else console.error("Minimum sequencer length reached");
   }
   updateTempo = (newTempo) => {
@@ -84,7 +84,7 @@ class Sequencer extends React.Component {
   }
   render = (props) => {
     const buttonList = [];
-    for(let i = 0; i < this.state.length; i++){
+    for(let i = 1; i < this.state.length; i++){
       console.log(buttonList);
       buttonList[i] = <button className="seqStep" key={i + '_step'} onClick={() => this.pluckSequence(i)}>{i}</button>;
     }
