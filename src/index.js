@@ -40,7 +40,7 @@ class Sequencer extends React.Component {
     super(props);
     this.state = {
       length: 4,
-      currentStep: 0,
+      currentStep: 1,
       rootFreq: 440,
       running: false,
       tempo: 1000, //in milliseconds
@@ -136,6 +136,10 @@ class Filter extends React.Component {
   }
   updateResonance = (q) => {
     if(this.context) this.setState({resonance: q}, this.updateFilter());
+  }
+  doubleResonance = () => {
+    var newQ = this.state.resonance * 2;
+    this.setState({resonance: newQ}, this.updateFilter());
   }
   updateFilter = () => {
     if(this.context !== null){
