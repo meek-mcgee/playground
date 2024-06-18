@@ -50,6 +50,7 @@ class Sequencer extends React.Component {
     this.envelope = null;
   }
   pluckSequence = (step) => {
+    if(step == 0) step = 1;
     this.setState({currentStep: step});
     let newFreq = this.state.rootFreq * (step + 0.5);
     this.state.callbackFn(newFreq);
