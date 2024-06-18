@@ -60,15 +60,19 @@ class Sequencer extends React.Component {
     }
   }
   runSequence = () => {
-    document.getElementById("triggerEnvelope").click(); //will break when there's more than one envelope, must fix later
-    let step = (this.state.currentStep + 1) % this.state.length;
-    this.setState({currentStep: step, running: true});
-    let newFreq = this.state.rootFreq * (step + 0.5);
-    this.setState({rootFreq: this.state.callbackFn(newFreq)});
-    console.log("Current Pitch: " + newFreq + "Current Step: " + step);
+    if(this.state.running === false){ //If sequencer is not running, run sequence. Else, ignore
+      document.getElementById("triggerEnvelope").click(); //will break when there's more than one envelope, must fix later
+      let step = (this.state.currentStep + 1) % this.state.length;
+      this.setState({currentStep: step, running: true});
+      let newFreq = this.state.rootFreq * (step + 0.5);
+      this.setState({rootFreq: this.state.callbackFn(newFreq)});
+      console.log("Current Pitch: " + newFreq + "Current Step: " + step);
+    }
+    
   }
   stopSequence = () => {
-
+    this.setState({running: false);
+    console.log("Stopped Sequence");
   }
   stepUpLength = () => {
     if(this.state.length < 16) this.setState({length: this.state.length + 1});
@@ -90,10 +94,10 @@ class Sequencer extends React.Component {
     }
     return(
       <div className="inlineDiv">
+        {buttonList}
         <button className="key" onClick={() => this.stepUpLength() }>+</button>
         <button className="key" onClick={() => this.stepDownLength() }>-</button>
         <Slider sliderName="Tempo" minVal={20} maxVal={1000} defaultVal={100} callbackFn={this.updateTempo} />
-        {buttonList}
       </div>
     );
   }
